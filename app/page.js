@@ -47,15 +47,6 @@ function Home() {
                             </div>
                         </Link>
                     ))}
-
-                    <Link href="/create/new">
-                        <div className="border-2 px-4 py-2 flex gap-4 items-center rounded-xl h-16 min-w-[20rem] max-w-xl cursor-pointer">
-                            <div className="text-lg">+</div>
-                            <div className="flex flex-col">
-                                <div className="text-base font-medium">Create a new assistant</div>
-                            </div>
-                        </div>
-                    </Link>
                 </div>
             </div>
         </main>
