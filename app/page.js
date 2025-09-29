@@ -1,50 +1,65 @@
 'use client';
-
 import { useEffect, useRef, useState } from 'react';
 
 export default function EmbedPage({ params: { assistantId } }) {
-  const [messages, setMessages] = useState([]); // {role:'assistant'|'user', content:string}[]
-  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState([]); // [{role:'assistant'|'user', content:string}]
   const [sending, setSending] = useState(false);
+  const inputRef = useRef(null);
   const scrollerRef = useRef(null);
+  const startedRef = useRef(false); // guard against double start()
 
-  // Auto-start: get the welcome + first question
+  // Always scroll to bottom when messages change
   useEffect(() => {
-    const start = async () => {
-      setSending(true);
-      try {
-        const res = await fetch('/api/assistant', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            assistantId,
-            message: 'START',
-            history: [], // no history on first turn
-          }),
-        });
-        const text = await res.text();
-        setMessages([{ role: 'assistant', content: text }]);
-      } catch (e) {
-        setMessages([{ role: 'assistant', content: 'Sorry—something went wrong starting the chat.' }]);
-      } finally {
-        setSending(false);
-      }
-    };
-    start();
-  }, [assistantId]);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: 'smooth' });
+    if (scrollerRef.current) {
+      scrollerRef.current.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: 'smooth' });
+    }
   }, [messages]);
 
-  const send = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || sending) return;
+  // Start conversation once per mount/assistant
+  useEffect(() => {
+    setMessages([]);            // reset when assistant changes
+    startedRef.current = false; // reset the guard
+    startConversation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assistantId]);
 
+  async function startConversation() {
+    if (startedRef.current) return;
+    startedRef.current = true;
+
+    setSending(true);
+    try {
+      const res = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistantId,
+          message: 'START',
+          history: [], // first turn, no history
+        }),
+      });
+
+      const text = await res.text();
+      setMessages([{ role: 'assistant', content: text }]);
+    } catch (e) {
+      setMessages([{ role: 'assistant', content: "Sorry—something went wrong starting the chat." }]);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function onSubmit(e) {
+    e.preventDefault();           // prevent double submit (button + Enter)
+    if (sending) return;
+
+    const val = inputRef.current?.value ?? '';
+    const trimmed = val.trim();
+    if (!trimmed) return;
+
+    // Locally append the user's message
     const nextHistory = [...messages, { role: 'user', content: trimmed }];
     setMessages(nextHistory);
-    setInput('');
+    inputRef.current.value = '';
     setSending(true);
 
     try {
@@ -53,74 +68,58 @@ export default function EmbedPage({ params: { assistantId } }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assistantId,
-          message: trimmed,
-          history: nextHistory, // send full conversation so far
+          message: trimmed,     // last user input
+          history: nextHistory, // full convo so far (so the server has context)
         }),
       });
+
       const text = await res.text();
-      setMessages((prev) => [...prev, { role: 'assistant', content: text }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: text }]);
     } catch (e) {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Sorry—there was a network error. Please try again.' },
-      ]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry—something went wrong. Try again." }]);
     } finally {
       setSending(false);
+      inputRef.current?.focus();
     }
-  };
-
-  const onKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      send();
-    }
-  };
+  }
 
   return (
-    <main className="min-h-screen bg-gray-100 flex flex-col">
-      <div className="p-3 text-sm font-medium">myAssistant</div>
-
-      <div
-        ref={scrollerRef}
-        className="flex-1 overflow-y-auto px-4 pb-6"
-        style={{ scrollBehavior: 'smooth' }}
-      >
-        <div className="max-w-3xl mx-auto space-y-4">
-          {messages.map((m, i) => (
+    <div className="min-h-screen w-full bg-gray-100">
+      <div ref={scrollerRef} className="mx-auto max-w-3xl h-[calc(100vh-2rem)] overflow-auto p-4">
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            className={`my-3 flex ${m.role === 'assistant' ? 'justify-start' : 'justify-end'}`}
+          >
             <div
-              key={i}
-              className={`rounded-lg px-4 py-3 text-[15px] leading-relaxed ${
+              className={`max-w-[80%] rounded-xl px-4 py-3 leading-relaxed ${
                 m.role === 'assistant'
-                  ? 'bg-slate-800 text-white self-start max-w-[85%]'
-                  : 'bg-white border self-end max-w-[85%]'
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-white border border-gray-300 text-gray-900'
               }`}
             >
               {m.content}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        ))}
 
-      <div className="border-t bg-white">
-        <div className="max-w-3xl mx-auto flex gap-2 p-3">
-          <textarea
-            className="flex-1 border rounded-md px-3 py-2 focus:outline-none focus:ring"
+        <form onSubmit={onSubmit} className="sticky bottom-0 mt-4 flex gap-2 bg-gray-100 py-2">
+          <input
+            ref={inputRef}
+            type="text"
             placeholder="Type your answer…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKey}
-            rows={2}
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:ring"
             disabled={sending}
           />
           <button
-            onClick={send}
+            type="submit"
             disabled={sending}
-            className="px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-50"
+            className="rounded-lg bg-blue-600 px-5 py-3 font-medium text-white disabled:opacity-60"
           >
-            Send
+            {sending ? 'Sending…' : 'Send'}
           </button>
-        </div>
+        </form>
       </div>
-    </main>
+    </div>
   );
 }
