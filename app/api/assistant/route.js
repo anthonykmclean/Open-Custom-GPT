@@ -1153,7 +1153,7 @@ After they confirm, say exactly: "Congratulations! You've completed your Brand F
 Your next step is to choose a framework from your Brand Messaging Toolkit and start creating specific marketing materials using your Brand Foundation as the foundation."
     `;
 
-  // Call model with system + history + latest user message
+// Call model with system + history + latest user message
 const { assistantId, message, history = [] } = await req.json();
 
 if (!assistantId || !message) {
@@ -1163,15 +1163,13 @@ if (!assistantId || !message) {
   );
 }
 
-// IMPORTANT: server-side key only
-const client = new (await import("openai")).default({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 // Build the message list: system -> prior turns -> latest user
 const messages = [
   { role: "system", content: brandFoundationGuide },
-  ...history,  // <-- keep conversation so far
+  ...history.map((msg) => ({
+    role: msg.assistant ? "assistant" : "user",
+    content: msg.content,
+  })),
   { role: "user", content: message },
 ];
 
