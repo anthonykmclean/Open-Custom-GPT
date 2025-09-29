@@ -1154,23 +1154,15 @@ Your next step is to choose a framework from your Brand Messaging Toolkit and st
     `;
 
     // Call model with system + user message
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: brandFoundationGuide },
-        { role: "user", content: message },
-      ],
-    });
+  const reply = completion.choices[0].message.content;
 
-    const reply = completion.choices[0].message.content;
-
+// Return the plain text reply instead of stringified JSON
 return new Response(reply, {
   status: 200,
 });
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err?.message ?? "Unknown error" }),
-      { status: 500 }
-    );
-  }
+} catch (err) {
+  return new Response(
+    JSON.stringify({ error: err?.message ?? "Unknown error" }),
+    { status: 500 }
+  );
 }
