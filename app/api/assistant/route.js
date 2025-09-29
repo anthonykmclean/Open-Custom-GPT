@@ -1153,16 +1153,26 @@ After they confirm, say exactly: "Congratulations! You've completed your Brand F
 Your next step is to choose a framework from your Brand Messaging Toolkit and start creating specific marketing materials using your Brand Foundation as the foundation."
     `;
 
-    // Call model with system + user message
-  const reply = completion.choices[0].message.content;
+   // Call model with system + user message
+const completion = await client.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [
+    { role: "system", content: brandFoundationGuide },
+    { role: "user", content: message },
+  ],
+});
 
-// Return the plain text reply instead of stringified JSON
+const reply = completion.choices[0].message.content;
+
+// ✅ Return plain text (so the chat bubble shows text, not JSON)
 return new Response(reply, {
   status: 200,
+  headers: { "Content-Type": "text/plain; charset=utf-8" },
 });
 } catch (err) {
   return new Response(
     JSON.stringify({ error: err?.message ?? "Unknown error" }),
-    { status: 500 }
+    { status: 500, headers: { "Content-Type": "application/json" } }
   );
 }
+} // <-- this single brace should be the LAST character in the file
