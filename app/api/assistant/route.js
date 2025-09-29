@@ -1153,18 +1153,39 @@ After they confirm, say exactly: "Congratulations! You've completed your Brand F
 Your next step is to choose a framework from your Brand Messaging Toolkit and start creating specific marketing materials using your Brand Foundation as the foundation."
     `;
 
-   // Call model with system + user message
-const completion = await client.chat.completions.create({
-  model: "gpt-4o-mini",
-  messages: [
-    { role: "system", content: brandFoundationGuide },
-    { role: "user", content: message },
-  ],
+  // Call model with system + history + latest user message
+const { assistantId, message, history = [] } = await req.json();
+
+if (!assistantId || !message) {
+  return new Response(
+    JSON.stringify({ error: "assistantId and message are required" }),
+    { status: 400, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+// IMPORTANT: server-side key only
+const client = new (await import("openai")).default({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-const reply = completion.choices[0].message.content;
+// Build the message list: system -> prior turns -> latest user
+const messages = [
+  { role: "system", content: brandFoundationGuide },
+  ...history.map((m) => ({
+    role: m.role === "assistant" ? "assistant" : "user",
+    content: m.content,
+  })),
+  { role: "user", content: message },
+];
 
-// ✅ Return plain text (so the chat bubble shows text, not JSON)
+const completion = await client.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages,
+});
+
+const reply = completion.choices[0]?.message?.content ?? "";
+
+// Return plain text (so the UI shows the bubble text, not JSON)
 return new Response(reply, {
   status: 200,
   headers: { "Content-Type": "text/plain; charset=utf-8" },
@@ -1175,4 +1196,4 @@ return new Response(reply, {
     { status: 500, headers: { "Content-Type": "application/json" } }
   );
 }
-} // <-- this single brace should be the LAST character in the file
+}
