@@ -1164,7 +1164,7 @@ Your next step is to choose a framework from your Brand Messaging Toolkit and st
 
     const reply = completion.choices[0].message.content;
 
-return new Response(JSON.stringify(reply), {
+return new Response(reply, {
   status: 200,
 });
   } catch (err) {
