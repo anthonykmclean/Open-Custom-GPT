@@ -1171,10 +1171,7 @@ const client = new (await import("openai")).default({
 // Build the message list: system -> prior turns -> latest user
 const messages = [
   { role: "system", content: brandFoundationGuide },
-  ...history.map((m) => ({
-    role: m.role === "assistant" ? "assistant" : "user",
-    content: m.content,
-  })),
+  ...history,  // <-- keep conversation so far
   { role: "user", content: message },
 ];
 
