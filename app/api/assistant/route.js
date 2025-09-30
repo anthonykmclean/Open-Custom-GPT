@@ -5,11 +5,11 @@ import OpenAI from "openai";
 
 export async function POST(req) {
   try {
-    const { message } = await req.json();
+    const { assistantId, message } = await req.json();
 
-    if (!message) {
+    if (!assistantId || !message) {
       return new Response(
-        JSON.stringify({ error: "message is required" }),
+        JSON.stringify({ error: "assistantId and message are required" }),
         { status: 400 }
       );
     }
