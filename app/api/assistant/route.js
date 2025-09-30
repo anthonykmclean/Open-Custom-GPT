@@ -5,15 +5,18 @@ import OpenAI from "openai";
 
 export async function POST(req) {
   try {
-    const { message } = await req.json();
+    // Parse the request body exactly once
+    const { assistantId, message, history = [] } = await req.json();
 
-    if (!message) {
+    // Validate inputs
+    if (!assistantId || !message) {
       return new Response(
-        JSON.stringify({ error: "message is required" }),
-        { status: 400 }
+        JSON.stringify({ error: "assistantId and message are required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
+    // OpenAI client
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     // 🟢 Brand Foundation instructions here:
